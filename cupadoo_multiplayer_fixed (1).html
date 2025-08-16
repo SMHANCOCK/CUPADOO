@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CUPADOO! — Multiplayer</title>
+  <style>
+    body { margin:0; font-family:system-ui, sans-serif; background:#0f172a; color:#e5e7eb; }
+    .wrap { max-width:600px; margin:40px auto; padding:20px; }
+    h1 { font-size:28px; margin-bottom:8px; }
+    .card { background:#111827; padding:20px; border-radius:12px; margin-top:20px; }
+    input, button { border-radius:10px; border:none; font-size:16px; }
+    input {
+      width:100%;
+      margin:8px 0;
+      padding:12px 14px;
+      font-size:18px;
+      background:#0b1220;
+      color:#fff;
+      border:2px solid #1f2937;
+      box-sizing:border-box;
+    }
+    button { cursor:pointer; margin:8px 0; padding:12px 14px; background:#22c55e; color:#05170c; font-weight:700; width:100%; }
+    button.secondary { background:#1f2937; color:#fff; }
+    .hidden { display:none; }
+    .players { margin-top:12px; }
+    .player { background:#101523; padding:8px 10px; border-radius:10px; margin:4px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>CUPADOO! 🎲 Multiplayer</h1>
+
+    <!-- Room setup -->
+    <div id="screen-setup" class="card">
+      <button id="btnCreate">Create Room</button>
+      <input id="joinCode" placeholder="Enter room code" />
+      <button id="btnJoin">Join Room</button>
+    </div>
+
+    <!-- Waiting room -->
+    <div id="screen-wait" class="card hidden">
+      <h2>Room Code: <span id="roomCodeLbl"></span></h2>
+      <p>Share this code with friends to join.</p>
+      <h3>Players:</h3>
+      <div id="playersList" class="players"></div>
+      <button id="btnStart" class="hidden">Start Game</button>
+    </div>
+
+    <!-- Game screen -->
+    <div id="screen-game" class="card hidden">
+      <h2>Game On!</h2>
+      <p id="gameStatus">Waiting for host…</p>
+      <div id="gameArea"></div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyA1iB1gMq2UubLhlUDvDdnQPOZ1l5utGW8",
+    authDomain: "cupadoo-80273.firebaseapp.com",
+    databaseURL: "https://cupadoo-80273-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "cupadoo-80273",
+    storageBucket: "cupadoo-80273.firebasestorage.app",
+    messagingSenderId: "827895807709",
+    appId: "1:827895807709:web:806035be2f119d3993e534",
+    measurementId: "G-8MHF4LZ9JR"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let roomCode = null;
+  let playerId = "p" + Math.floor(Math.random()*99999);
+  let playerName = "Player " + Math.floor(Math.random()*100);
+  let isHost = false;
+
+  const setupScreen = document.getElementById('screen-setup');
+  const waitScreen = document.getElementById('screen-wait');
+  const gameScreen = document.getElementById('screen-game');
+  const playersList = document.getElementById('playersList');
+  const roomCodeLbl = document.getElementById('roomCodeLbl');
+  const gameStatus = document.getElementById('gameStatus');
+  const btnStart = document.getElementById('btnStart');
+
+  function generateCode() {
+    const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join("");
+  }
+
+  function showPlayers(players) {
+    playersList.innerHTML="";
+    Object.values(players).forEach(p=>{
+      const div=document.createElement('div');
+      div.className="player";
+      div.textContent=p.name + (p.host?" (Host)":"");
+      playersList.appendChild(div);
+    });
+    if(isHost && Object.keys(players).length>=2) {
+      btnStart.classList.remove("hidden");
+    } else {
+      btnStart.classList.add("hidden");
+    }
+  }
+
+  document.getElementById('btnCreate').onclick=()=>{
+    roomCode = generateCode();
+    isHost = true;
+    joinRoom(roomCode);
+  };
+
+  document.getElementById('btnJoin').onclick=()=>{
+    const code=document.getElementById('joinCode').value.trim().toUpperCase();
+    if(code) { roomCode=code; joinRoom(roomCode); }
+  };
+
+  function joinRoom(code){
+    setupScreen.classList.add('hidden');
+    waitScreen.classList.remove('hidden');
+    roomCodeLbl.textContent=code;
+
+    const ref=db.ref("rooms/"+code+"/players/"+playerId);
+    ref.set({name:playerName, host:isHost});
+    ref.onDisconnect().remove();
+
+    db.ref("rooms/"+code+"/players").on("value", snap=>{
+      if(snap.exists()) showPlayers(snap.val());
+    });
+  }
+
+  btnStart.onclick=()=>{
+    if(!isHost) return;
+    db.ref("rooms/"+roomCode+"/players").once("value").then(snap=>{
+      const players=snap.val()||{};
+      let count=Object.keys(players).length;
+      let updates={};
+      for(let i=count;i<6;i++){
+        updates["AI"+i]={name:"AI "+i, host:false, ai:true};
+      }
+      db.ref("rooms/"+roomCode+"/players").update(updates);
+      db.ref("rooms/"+roomCode+"/state").set({started:true, host:playerId});
+      waitScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      gameStatus.textContent="Game started!";
+    });
+  };
+
+  db.ref("rooms").on("child_changed", snap=>{
+    if(roomCode && snap.key===roomCode){
+      const state=snap.val().state;
+      if(state && state.started){
+        waitScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        gameStatus.textContent="Game started!";
+      }
+    }
+  });
+  </script>
+</body>
+</html>
