@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>CUPADOO! — Multiplayer (v4c)</title>
+<style>
+:root { --bg:#0f172a; --panel:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; --accent:#22c55e; --danger:#ef4444; --warn:#f59e0b; }
+*{ box-sizing:border-box; } body{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+.wrap{ max-width:980px; margin:0 auto; padding:16px; }
+.card{ background:var(--card); border-radius:18px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+.row{ display:flex; gap:10px; } .row>*{ flex:1; }
+button{ width:100%; padding:14px; border:none; border-radius:14px; font-weight:700; font-size:16px; background:linear-gradient(180deg,#22c55e,#16a34a); color:#05170c; cursor:pointer; }
+button.secondary{ background:#1f2937; color:var(--text); }
+button.warn{ background:linear-gradient(180deg,var(--warn),#eab308); color:#111; }
+button.danger{ background:linear-gradient(180deg,var(--danger),#b91c1c); color:#fff; }
+button[disabled]{ opacity:.45; cursor:not-allowed; }
+input[type=text]{ width:100%; padding:12px; border-radius:12px; border:1px solid #1f2937; background:var(--panel); color:var(--text); font-size:16px; }
+.pill{ display:inline-block; padding:6px 10px; border-radius:999px; background:var(--panel); color:var(--muted); font-size:12px; }
+.players{ display:grid; gap:10px; } .player{ display:flex; align-items:center; justify-content:space-between; background:#101523; border:1px solid #1f2937; padding:10px 12px; border-radius:14px; }
+.player.you{ outline:2px solid var(--accent); } .turn{ border:1px dashed var(--accent); }
+.muted{ color:var(--muted); }
+.dice{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.die{ width:44px; height:44px; border-radius:12px; background:#0b1220; display:grid; place-items:center; font-weight:800; font-size:20px; border:1px solid #1f2937; }
+.hidden{ display:none !important; } .center{ text-align:center; } .big{ font-size:28px; font-weight:800; letter-spacing:1px; }
+textarea.log{ width:100%; height:220px; background:#020617; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px; resize:vertical; }
+.kv{display:grid;grid-template-columns:180px 1fr;gap:8px;font-family:ui-monospace,monospace}.kv div{padding:4px 0;border-bottom:1px dashed #263044}
+.menu-btn{ padding:10px 12px; border-radius:12px; background:#0b1220; border:1px solid #1f2937; color:var(--text); font-weight:700; align-self:flex-start; }
+.dropdown{ position:absolute; right:0; top:44px; width:360px; }
+.topbar{ position:relative; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.brand{ font-weight:900; font-size:22px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">CUPADOO! <span class="pill">Multiplayer v4c</span></div>
+    <button id="btnMenu" class="menu-btn">Debug ▾</button>
+    <div id="menuDropdown" class="dropdown hidden card">
+      <div class="kv">
+        <div>dbURL</div><div id="kv-db">—</div>
+        <div>isHost</div><div id="kv-host">—</div>
+        <div>playerId</div><div id="kv-pid">—</div>
+        <div>playerName</div><div id="kv-pname">—</div>
+        <div>roomCode</div><div id="kv-room">—</div>
+        <div>players path</div><div id="kv-ppath">—</div>
+        <div>actions path</div><div id="kv-apath">—</div>
+        <div>lastError</div><div id="kv-err" style="color:#ef4444">—</div>
+      </div>
+      <textarea id="debugLog" class="log" spellcheck="false" readonly></textarea>
+    </div>
+  </div>
+
+  <div class="card" id="screen-lobby">
+    <h2>Lobby</h2>
+    <div class="row">
+      <button id="btnCreate">Create Room</button>
+      <button id="btnTest" class="secondary">Test Write</button>
+    </div>
+    <div class="row">
+      <input id="joinCode" placeholder="Enter code (e.g., F8ZQ)" maxlength="8" />
+      <button id="btnJoin">Join</button>
+    </div>
+    <div class="row hidden" id="roomRow">
+      <div class="pill">Room: <span id="roomCodeLbl">—</span></div>
+      <button id="btnCopy" class="secondary">Copy Code</button>
+      <button id="btnLeave" class="warn">Leave</button>
+    </div>
+    <h3>Players</h3>
+    <div id="playersList" class="players"></div>
+    <button id="btnStart" disabled>Start Game</button>
+    <p class="muted">Host can start when ≥ 2 humans. Moves go through a host-authoritative action queue.</p>
+  </div>
+
+  <div class="card hidden" id="screen-game">
+    <div class="row">
+      <div class="pill" id="roundPill">Round 1</div>
+      <div class="pill" id="turnPill">—</div>
+      <div class="pill" id="totalPill">Total: 0</div>
+      <div class="pill hidden" id="palificoPill">Palifico</div>
+    </div>
+    <h2 class="center">Your Dice</h2>
+    <div class="dice" id="yourDice"></div>
+    <div class="center">
+      <div class="big" id="bidText">No bid yet</div>
+      <div class="muted" id="bidBy"></div>
+    </div>
+    <h2>Players</h2>
+    <div class="players" id="playersPanel"></div>
+    <div id="controls">
+      <div class="row">
+        <div><label>Qty</label><input id="qty" type="text" value="1" /></div>
+        <div><label id="faceLabel">Face (2–6)</label><input id="face" type="text" value="2" /></div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnBid">Bid</button>
+        <button id="btnDudo" class="danger">Dudo</button>
+        <button id="btnCalza" class="warn">Calza</button>
+      </div>
+      <div id="turnHint" class="muted center" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const L=document.getElementById('debugLog'); 
+function log(...a){ const line=a.map(v=>{try{return typeof v==='object'?JSON.stringify(v):String(v);}catch{return String(v);}}).join(' '); if(L){L.value+=`[${new Date().toISOString()}] ${line}\n`; L.scrollTop=L.scrollHeight;} console.log(...a); }
+function setKV(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+const rnd=n=>1+Math.floor(Math.random()*n); const roll=n=>Array.from({length:n},()=>rnd(6));
+function code(){ const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join(''); }
+
+// Firebase
+const cfg={apiKey:"AIzaSyA1iB1gMq2UubLhlUDvDdnQPOZ1l5utGW8",authDomain:"cupadoo-80273.firebaseapp.com",databaseURL:"https://cupadoo-80273-default-rtdb.europe-west1.firebasedatabase.app",projectId:"cupadoo-80273",storageBucket:"cupadoo-80273.firebasestorage.app",messagingSenderId:"827895807709",appId:"1:827895807709:web:806035be2f119d3993e534",measurementId:"G-8MHF4LZ9JR"};
+const app=firebase.apps?.length?firebase.app():firebase.initializeApp(cfg); const db=firebase.database(); setKV('kv-db', app.options?.databaseURL||'(none)');
+
+function cleanForFirebase(obj){
+  return JSON.parse(JSON.stringify(obj, (key, value) =>
+    value === undefined ? null : value
+  ));
+}
+
+let playerId="p"+Math.floor(Math.random()*999999);
+let playerName="Player "+Math.floor(Math.random()*1000);
+let isHost=false; setKV('kv-host', isHost); setKV('kv-pid', playerId); setKV('kv-pname', playerName);
+let roomCode=null, playerRef=null, playersRef=null, stateRef=null, actionsRef=null, heartbeat=null;
+
+// Debug toggle
+const debugBtn=document.getElementById('btnMenu'); const debugDrop=document.getElementById('menuDropdown');
+if(debugBtn && debugDrop){ debugBtn.onclick=(e)=>{e.stopPropagation(); debugDrop.classList.toggle('hidden');}; document.addEventListener('click',(e)=>{ if(!debugDrop.classList.contains('hidden') && !debugDrop.contains(e.target) && e.target!==debugBtn){ debugDrop.classList.add('hidden'); }}); document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ debugDrop.classList.add('hidden'); }}); }
+
+function renderLobby(players){
+  const box=document.getElementById('playersList'); box.innerHTML='';
+  Object.entries(players||{}).forEach(([id,p])=>{
+    const row=document.createElement('div'); row.className='player'+(id===playerId?' you':'');
+    row.innerHTML=`<div>${(p&&p.name)||'(anon)'}${p&&p.host?' — Host':''}${p&&p.ai?' — AI':''}</div><div class="pill">${id}</div>`;
+    box.appendChild(row);
+  });
+  const humans=Object.values(players||{}).filter(p=>p&&!p.ai).length;
+  document.getElementById('btnStart').disabled=!(isHost && humans>=2);
+}
+
+async function selfHeal(players){
+  const me=(players||{})[playerId]||{}; const fix={};
+  if(!('name' in me)) fix.name=playerName;
+  if(!('host' in me)) fix.host=isHost;
+  if(!('ai' in me)) fix.ai=false;
+  if(Object.keys(fix).length){ log('🩹 Self-heal:', fix); try{ await playerRef.update(fix);}catch(e){ setKV('kv-err', e.message);} }
+}
+
+function normalizedState(order,hands,startIndex){
+  return { started:true, order, turnIndex:startIndex, round:1, bid:null, palifico:false, palificoFace:null, inReveal:false, gameOver:false, hands, lastChoice:{}, roundStarterIndex:startIndex, updatedAt:Date.now() };
+}
+
+async function joinRoom(codeVal){
+  roomCode=codeVal; document.getElementById('roomCodeLbl').textContent=codeVal; setKV('kv-room', codeVal);
+  document.getElementById('roomRow').classList.remove('hidden');
+
+  playerRef=db.ref(`rooms/${codeVal}/players/${playerId}`);
+  await playerRef.set(cleanForFirebase({ name:playerName, host:isHost, ai:false, dice:5, lastSeen: firebase.database.ServerValue.TIMESTAMP }));
+  await playerRef.onDisconnect().remove();
+  if(heartbeat) clearInterval(heartbeat);
+  heartbeat=setInterval(()=> playerRef.child('lastSeen').set(cleanForFirebase(firebase.database.ServerValue.TIMESTAMP)), 10000);
+
+  playersRef=db.ref(`rooms/${codeVal}/players`);
+  setKV('kv-ppath', `rooms/${codeVal}/players`);
+  playersRef.on('value', s=>{ const val=s.val()||{}; renderLobby(val); selfHeal(val); });
+
+  actionsRef=db.ref(`rooms/${codeVal}/actions`);
+  setKV('kv-apath', `rooms/${codeVal}/actions`);
+
+  stateRef=db.ref(`rooms/${codeVal}/state`);
+  stateRef.on('value', s=>{
+    const st=s.val();
+    if(!st || !st.started){ return; }
+    document.getElementById('screen-lobby').classList.add('hidden');
+    document.getElementById('screen-game').classList.remove('hidden');
+    renderGame(st);
+  });
+
+  if(isHost){
+    // Process actions (host only)
+    actionsRef.on('child_added', async snap=>{
+      const action=snap.val(); const key=snap.key;
+      try{
+        const current=(await stateRef.once('value')).val();
+        if(!current || !current.started){ log('⏭️ no state yet for action', action); return; }
+        if(current.inReveal || current.gameOver){ log('⏸️ state busy', {inReveal:current.inReveal, gameOver:current.gameOver}); return; }
+        const expectedId=current.order[current.turnIndex];
+        if(action.by!==expectedId){ log('⚠️ ignoring action not by current player', action); await actionsRef.child(key).remove(); return; }
+        log('🛠️ processing action', action);
+        dbg('🎲 host processing', action); console.log('🎲 host processing', action);
+      await processAction(current, action);
+      dbg('🔄 state after process', current); console.log('🔄 state after process', current);
+        await actionsRef.child(key).remove();
+        log('✅ processed + removed', {key});
+      }catch(e){ setKV('kv-err', e?.message||String(e)); log('❌ action error', e); }
+    });
+
+    // AI: enqueue when it's AI's turn (debounced by updatedAt)
+    let lastAI = 0;
+    stateRef.on('value', snap=>{
+      const st=snap.val(); if(!st||!st.started||st.inReveal||st.gameOver) return;
+      if(st.updatedAt===lastAI) return;
+      const curId=st.order[st.turnIndex];
+      if(curId && curId.startsWith('AI')){
+        lastAI=st.updatedAt;
+        const a=aiDecision(st, curId);
+        actionsRef.push({by:curId, type:a.type, qty:a.qty, face:a.face, ts:firebase.database.ServerValue.TIMESTAMP});
+        log('🤖 enqueued AI', a);
+      }
+    });
+  }
+}
+
+document.getElementById('btnCreate').onclick=async()=>{ isHost=true; setKV('kv-host', isHost); await joinRoom(code()); };
+document.getElementById('btnJoin').onclick=async()=>{ const c=(document.getElementById('joinCode').value||'').trim().toUpperCase(); if(!c)return; isHost=false; setKV('kv-host', isHost); await joinRoom(c); };
+document.getElementById('btnCopy').onclick=async()=>{ try{await navigator.clipboard.writeText(roomCode);}catch{} };
+document.getElementById('btnLeave').onclick=async()=>{
+  try{ if(heartbeat) clearInterval(heartbeat); if(playersRef) playersRef.off(); if(stateRef) stateRef.off(); if(actionsRef) actionsRef.off(); if(playerRef) await playerRef.remove(); }
+  finally{ roomCode=null; isHost=false; setKV('kv-host', isHost); setKV('kv-room','—'); document.getElementById('roomRow').classList.add('hidden'); document.getElementById('screen-game').classList.add('hidden'); document.getElementById('screen-lobby').classList.remove('hidden'); }
+};
+document.getElementById('btnTest').onclick=()=>{ const r=db.ref('__debug/ping').push(); r.set(cleanForFirebase({t:Date.now(), ua:navigator.userAgent}).then(()=>log('✅ test write ok')).catch(e=>setKV('kv-err',e.message)); };
+
+document.getElementById('btnStart').onclick=async()=>{
+  if(!isHost) return;
+  const pSnap=await playersRef.once('value'); const players=pSnap.val()||{};
+  const humans=Object.values(players).filter(p=>p&&!p.ai).length; if(humans<2) return;
+
+  // Fill AIs up to 6 total
+  const names=['Ava','Blake','Casey','Drew','Eden','Flynn','Gray','Harper','Indi','Joss','Kai','Lex'];
+  const updates={}; let idx=0;
+  while(Object.keys(players).length + Object.keys(updates).length < 6){
+    const id='AI'+idx++; if(players[id]||updates[id]) continue; updates[id]={ name:names[(idx-1)%names.length], ai:true, host:false, dice:5 };
+  }
+  if(Object.keys(updates).length) await db.ref(`rooms/${roomCode}/players`).update(updates);
+
+  const allSnap=await playersRef.once('value'); const all=allSnap.val()||{};
+  const order=Object.keys(all); const hands={}; order.forEach(id=>{ const d=all[id].dice||5; hands[id]=roll(d); });
+  const startIndex=Math.floor(Math.random()*order.length);
+  await db.ref(`rooms/${roomCode}/state`).set(cleanForFirebase(normalizedState(order,hands,startIndex)));
+  log('🚀 game started', {order, startIndex});
+};
+
+// ===== Game helpers =====
+const onesWild=(st,face)=> !st.palifico && face!==1;
+const totalDice=st=> st.order.reduce((s,id)=> s + ((st.hands[id]||[]).length), 0);
+const nextAlive=(st,from)=>{ let i=from; for(let c=0;c<st.order.length;c++){ i=(i+1)%st.order.length; if((st.hands[st.order[i]]||[]).length>0) return i; } return from; };
+
+function renderGame(st){
+  document.getElementById('roundPill').textContent='Round '+st.round;
+  const myTurn = st.order[st.turnIndex]===playerId && !st.inReveal && !st.gameOver;
+  document.getElementById('turnPill').textContent=myTurn?'Your turn':'Their turn';
+  document.getElementById('totalPill').textContent='Total: '+totalDice(st);
+  document.getElementById('palificoPill').classList.toggle('hidden', !st.palifico);
+  const yd=document.getElementById('yourDice'); yd.innerHTML=''; (st.hands[playerId]||[]).forEach(v=>{ const d=document.createElement('div'); d.className='die'; d.textContent=String(v); yd.appendChild(d); });
+  const panel=document.getElementById('playersPanel'); panel.innerHTML=''; st.order.forEach((id,idx)=>{ const row=document.createElement('div'); row.className='player'+(id===playerId?' you':'')+(idx===st.turnIndex?' turn':''); row.innerHTML=`<div>${id===playerId?'You':id}</div><div class="muted">${(st.hands[id]||[]).length} dice</div>`; panel.appendChild(row); });
+  const b=st.bid; if(!b){ document.getElementById('bidText').textContent='No bid yet'; document.getElementById('bidBy').textContent=''; } else { document.getElementById('bidText').textContent=`${b.qty} × ${b.face}'s ${st.palifico?'• PALIFICO':''}`; document.getElementById('bidBy').textContent=`by ${b.by===playerId?'You':b.by}`; }
+  const ctrls=document.getElementById('controls'); ctrls.querySelectorAll('button').forEach(el=> el.disabled=!myTurn);
+  document.getElementById('turnHint').textContent = myTurn ? '' : 'Waiting for other players...';
+}
+
+function isValidRaise(newBid, lastBid) {
+  if (!lastBid) return true;
+  const { qty, face } = newBid;
+  const b = lastBid;
+  // Simplified: allow if qty > or same qty but higher face
+  return (qty > b.qty) || (qty === b.qty && face > b.face);
+}
+  const b=st.bid;
+  if(st.palifico){ const locked=st.palificoFace ?? b.face; return face===locked && qty>b.qty; }
+  if(b.face===face) return qty>b.qty;
+  if(face===1 && b.face!==1) return qty>=Math.ceil(b.qty/2);
+  if(b.face===1 && face!==1) return qty>=(b.qty*2+1);
+  return (qty>b.qty) || (qty===b.qty && face>b.face);
+}
+
+async function writeState(partial){
+  try{ partial.updatedAt=Date.now(); await stateRef.update(cleanForFirebase(partial)); }
+  catch(e){ setKV('kv-err', e?.message||String(e)); log('❌ state write error', e); throw e; }
+}
+
+function countMatches(st,face){ const wild=onesWild(st,face); let t=0; for(const arr of Object.values(st.hands)) for(const d of (arr||[])) if(d===face || (wild && d===1)) t++; return t; }
+
+async function revealAndAdvance(st, loserId){
+  const hands={...st.hands}; if((hands[loserId]||[]).length>0) hands[loserId]=hands[loserId].slice(0, hands[loserId].length-1);
+  const alive=Object.keys(hands).filter(id => (hands[id]||[]).length>0);
+  if(alive.length<=1){ await writeState({ gameOver:true, hands, inReveal:false }); return; }
+  const loserIndex=st.order.indexOf(loserId);
+  const nextStarter = (hands[loserId]||[]).length>0 ? loserIndex : nextAlive({...st,hands}, loserIndex);
+  const newHands={}; for(const id of st.order){ const n=(hands[id]||[]).length; newHands[id]= n>0 ? roll(n) : []; }
+  const palifico = (newHands[st.order[nextStarter]]||[]).length===1;
+  await writeState({ hands:newHands, bid:null, inReveal:false, round:st.round+1, roundStarterIndex:nextStarter, turnIndex:nextStarter, palifico, palificoFace:null, lastChoice:{} });
+}
+
+// ===== Host processing of actions =====
+async function processAction(st, action){
+  // Always re-check latest state to avoid stale writes
+  const cur=(await stateRef.once('value')).val() || st;
+  if(action.type==='bid'){
+    if(!isValidRaise(cur, action.qty, action.face)){ log('❌ invalid bid', action); return; }
+    const palFace = (!cur.bid && cur.palifico && cur.palificoFace==null) ? action.face : cur.palificoFace;
+    await writeState({ bid:{qty:action.qty, face:action.face, by:action.by}, turnIndex: nextAlive(cur, cur.turnIndex), palificoFace:palFace });
+  } else if(action.type==='dudo'){
+    if(!cur.bid){ log('❌ dudo without bid'); return; }
+    await writeState({ inReveal:true });
+    const total=countMatches(cur, cur.bid.face);
+    const loser=(total>=cur.bid.qty)? action.by : cur.bid.by;
+    await revealAndAdvance(cur, loser);
+  } else if(action.type==='calza'){
+    if(cur.palifico || !cur.bid){ log('❌ calza invalid context'); return; }
+    await writeState({ inReveal:true });
+    const total=countMatches(cur, cur.bid.face);
+    if(total===cur.bid.qty){
+      const hands={...cur.hands}; const n=(hands[action.by]||[]).length; hands[action.by]=roll(Math.min(8,n+1));
+      const startIndex=cur.order.indexOf(action.by);
+      await writeState({ hands, inReveal:false, bid:null, round:cur.round+1, roundStarterIndex:startIndex, turnIndex:startIndex, palifico:(hands[action.by].length===1), palificoFace:null, lastChoice:{} });
+    } else {
+      await revealAndAdvance(cur, action.by);
+    }
+  }
+}
+
+// ===== Client -> actions =====
+async function pushAction(type, payload={}){
+  const s=(await stateRef.once('value')).val(); if(!s) return;
+  const myTurn = s.order[s.turnIndex]===playerId && !s.inReveal && !s.gameOver;
+  if(!myTurn){ log('action ignored: not your turn'); return; }
+  const act={by:playerId, type, ...payload, ts:firebase.database.ServerValue.TIMESTAMP};
+  log('➡️ pushing action to Firebase', act); console.log('➡️ pushing action to Firebase', act);
+    await actionsRef.push(act);
+  log('➡️ action sent', act);
+}
+
+document.getElementById('btnBid').onclick=async()=>{
+  const qty=parseInt(document.getElementById('qty').value,10)||1;
+  const face=Math.max(1,Math.min(6,parseInt(document.getElementById('face').value,10)||2));
+  await pushAction('bid', {qty, face});
+};
+document.getElementById('btnDudo').onclick=async()=>{ await pushAction('dudo'); };
+document.getElementById('btnCalza').onclick=async()=>{ await pushAction('calza'); };
+
+// ===== AI =====
+function aiDecision(st, id){
+  const hand=st.hands[id]||[]; const count=(face)=> hand.filter(d=>d===face || (!st.palifico && face!==1 && d===1)).length;
+  if(!st.bid){
+    let face=2, best=-1; for(let f=2;f<=6;f++){ const c=count(f); if(c>best){best=c; face=f;} }
+    return {type:'bid', qty: Math.max(1,best||1), face};
+  }
+  const b=st.bid;
+  const mine=count(b.face);
+  const needed=Math.max(0,b.qty-mine);
+  const others=totalDice(st)-hand.length;
+  const p=(!st.palifico && b.face!==1)?(2/6):(1/6);
+  const exp=others*p;
+  if(exp < needed-0.9) return {type:'dudo'};
+  for(let q=b.qty; q<=b.qty*2+3; q++){
+    for(let f=1; f<=6; f++){
+      const qq=q+1; const ff=f;
+      if(isValidRaise(st,qq,ff)) return {type:'bid', qty:qq, face:ff};
+    }
+  }
+  return {type:'dudo'};
+}
+
+})();</script>
+</body>
+</html>
