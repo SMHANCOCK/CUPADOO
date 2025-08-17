@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CUPADOO! — Multiplayer (DEBUG)</title>
+  <style>
+    :root { --bg:#0b1020; --ink:#e5e7eb; --card:#111827; --accent:#22c55e; --muted:#94a3b8; --warn:#f59e0b; --err:#ef4444; }
+    * { box-sizing:border-box }
+    body { margin:0; font-family:system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:720px; margin:24px auto; padding:16px; }
+    h1 { font-size:28px; margin:0 0 6px }
+    .sub { color:var(--muted); margin:0 0 16px }
+    .grid { display:grid; gap:16px }
+    .card { background:var(--card); padding:16px; border-radius:12px; }
+    input, button { border-radius:10px; border:none; font-size:16px; }
+    input {
+      width:100%;
+      margin:8px 0;
+      padding:12px 14px;
+      font-size:18px;
+      background:#0b1220;
+      color:#fff;
+      border:2px solid #1f2937;
+    }
+    button { cursor:pointer; margin:8px 0; padding:12px 14px; background:var(--accent); color:#05170c; font-weight:700; }
+    button.secondary { background:#1f2937; color:#fff; }
+    button.warn { background:var(--warn); color:#1f1305 }
+    .row { display:flex; gap:8px; align-items:center }
+    .row > * { flex:1 }
+    .hidden { display:none }
+    .players { margin-top:12px }
+    .player { background:#101523; padding:8px 10px; border-radius:10px; margin:4px 0; display:flex; justify-content:space-between; }
+    .pill { font-size:12px; padding:2px 8px; border-radius:999px; background:#0b1220; color:#cbd5e1 }
+    .kbd { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; background:#0b1220; padding:2px 6px; border-radius:6px; font-size:12px }
+    .mono { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .small { font-size:12px; color:var(--muted) }
+    .err { color:var(--err) }
+    details summary { cursor:pointer }
+    textarea.log { width:100%; height:200px; background:#020617; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px; resize:vertical; }
+    .kv { display:grid; grid-template-columns: 180px 1fr; gap:8px; }
+    .kv div { padding:4px 0; border-bottom:1px dashed #263044 }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>CUPADOO! 🎲 Multiplayer <span class="pill">DEBUG</span></h1>
+    <p class="sub">Use this build to see connection state, database writes, presence, and errors. Open DevTools console for extra logs.</p>
+
+    <!-- Quick status -->
+    <div class="card">
+      <div class="kv mono" id="kv">
+        <div>playerId</div><div id="kv-playerId">—</div>
+        <div>playerName</div><div id="kv-playerName">—</div>
+        <div>isHost</div><div id="kv-isHost">—</div>
+        <div>roomCode</div><div id="kv-roomCode">—</div>
+        <div>connected (.info/connected)</div><div id="kv-connected">—</div>
+        <div>serverTimeOffset (ms)</div><div id="kv-offset">—</div>
+        <div>lastError</div><div id="kv-lastError" class="err">—</div>
+      </div>
+    </div>
+
+    <!-- Room setup -->
+    <div id="screen-setup" class="card grid">
+      <div class="row">
+        <button id="btnCreate">Create Room</button>
+        <button id="btnPing" class="secondary">Test Write</button>
+      </div>
+      <input id="joinCode" placeholder="Enter room code" maxlength="10" inputmode="latin" autocomplete="off" />
+      <div class="row">
+        <button id="btnJoin">Join Room</button>
+        <button id="btnPaste" class="secondary">Paste</button>
+      </div>
+      <div class="small">Tip: Use <span class="kbd">Ctrl/⌘+Shift+I</span> to open DevTools.</div>
+    </div>
+
+    <!-- Waiting room -->
+    <div id="screen-wait" class="card hidden">
+      <h2>Room Code: <span id="roomCodeLbl" class="mono"></span></h2>
+      <div class="row">
+        <button id="btnCopy" class="secondary">Copy Code</button>
+        <button id="btnLeave" class="warn">Leave Room</button>
+      </div>
+      <p>Share this code with friends to join.</p>
+      <h3>Players:</h3>
+      <div id="playersList" class="players"></div>
+      <button id="btnStart" class="hidden">Start Game</button>
+      <div class="small">Start button appears for host when ≥ 2 human players.</div>
+    </div>
+
+    <!-- Game screen -->
+    <div id="screen-game" class="card hidden">
+      <h2>Game On!</h2>
+      <p id="gameStatus">Waiting for host…</p>
+      <div id="gameArea"></div>
+    </div>
+
+    <!-- Debug console -->
+    <details class="card" open>
+      <summary><strong>Debug Console</strong> (mirrors console.log; red lines are errors)</summary>
+      <textarea id="debugLog" class="log" spellcheck="false" readonly></textarea>
+    </details>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script>
+  // ===== Debug helpers =====
+  const $ = (id) => document.getElementById(id);
+  const dbgEl = $("debugLog");
+  const dbg = (...args) => {
+    const line = args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    dbgEl.value += `[${new Date().toISOString()}] ${line}\n`;
+    dbgEl.scrollTop = dbgEl.scrollHeight;
+    console.log(...args);
+  };
+  const setKV = (k,v) => { const el = $("kv-"+k); if(el) el.textContent = v; }
+  const setErr = (msg) => { setKV("lastError", msg); dbg("❌", msg); }
+
+  // Turn on Firebase SDK internal logging to console
+  if (window.firebase && firebase.database) {
+    try { firebase.database.enableLogging(true); } catch(e) {}
+  }
+
+  // ===== App state =====
+  const firebaseConfig = {
+    apiKey: "AIzaSyA1iB1gMq2UubLhlUDvDdnQPOZ1l5utGW8",
+    authDomain: "cupadoo-80273.firebaseapp.com",
+    databaseURL: "https://cupadoo-80273-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "cupadoo-80273",
+    storageBucket: "cupadoo-80273.firebasestorage.app",
+    messagingSenderId: "827895807709",
+    appId: "1:827895807709:web:806035be2f119d3993e534",
+    measurementId: "G-8MHF4LZ9JR"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let roomCode = null;
+  let playerId = "p" + Math.floor(Math.random()*999999);
+  let playerName = "Player " + Math.floor(Math.random()*1000);
+  let isHost = false;
+  let presenceInterval = null;
+
+  // Reflect initial KV
+  setKV("playerId", playerId);
+  setKV("playerName", playerName);
+  setKV("isHost", isHost);
+  setKV("roomCode", "—");
+
+  // Connection & time offset diagnostics
+  db.ref(".info/connected").on("value", snap => {
+    const val = !!snap.val();
+    setKV("connected", val);
+    dbg("ℹ️ .info/connected =", val);
+  });
+  db.ref(".info/serverTimeOffset").on("value", snap => {
+    const offset = snap.val() ?? null;
+    setKV("offset", offset);
+    dbg("ℹ️ serverTimeOffset =", offset);
+  });
+
+  // Quick test write to verify database rules allow writes
+  $("btnPing").onclick = () => {
+    const pingRef = db.ref("__debug/ping").push();
+    pingRef.set({ t: Date.now(), ua: navigator.userAgent }).then(() => {
+      dbg("✅ Test write ok at", pingRef.toString());
+    }).catch(err => {
+      setErr("Test write failed: " + err.message);
+    });
+  };
+
+  // UI elements
+  const setupScreen = $("screen-setup");
+  const waitScreen = $("screen-wait");
+  const gameScreen = $("screen-game");
+  const playersList = $("playersList");
+  const roomCodeLbl = $("roomCodeLbl");
+  const gameStatus = $("gameStatus");
+  const btnStart = $("btnStart");
+
+  function generateCode() {
+    const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join("");
+  }
+
+  function updatePlayersList(players) {
+    playersList.innerHTML="";
+    const entries = Object.entries(players || {});
+    entries.forEach(([id, p]) => {
+      const div=document.createElement('div');
+      div.className="player";
+      div.innerHTML = `<span>${p.name}${p.host?" <span class='pill'>Host</span>":""}${p.ai?" <span class='pill'>AI</span>":""}</span>
+                       <span class="small mono">${id}</span>`;
+      playersList.appendChild(div);
+    });
+    if(isHost && entries.filter(([id,p]) => !p.ai).length>=2) {
+      btnStart.classList.remove("hidden");
+    } else {
+      btnStart.classList.add("hidden");
+    }
+    dbg("👥 Players now:", players);
+  }
+
+  function showWaitScreen(code) {
+    setupScreen.classList.add('hidden');
+    waitScreen.classList.remove('hidden');
+    gameScreen.classList.add('hidden');
+    roomCodeLbl.textContent = code;
+    setKV("roomCode", code);
+  }
+
+  function showGameScreen() {
+    setupScreen.classList.add('hidden');
+    waitScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+  }
+
+  // Clipboard helpers
+  $("btnCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(roomCode); } catch(e) {}
+  };
+  $("btnPaste").onclick = async () => {
+    try { $("joinCode").value = (await navigator.clipboard.readText() || "").trim(); } catch(e) {}
+  };
+
+  // Create room
+  $("btnCreate").onclick = async () => {
+    try {
+      roomCode = generateCode();
+      isHost = true;
+      setKV("isHost", isHost);
+      await joinRoom(roomCode);
+      dbg("🆕 Created room", roomCode);
+    } catch (err) { setErr("Create failed: " + err.message); }
+  };
+
+  // Join room
+  $("btnJoin").onclick = async () => {
+    const code=$("joinCode").value.trim().toUpperCase();
+    if(!code) return;
+    roomCode = code;
+    try { await joinRoom(roomCode); }
+    catch (err) { setErr("Join failed: " + err.message); }
+  };
+
+  // Leave room
+  $("btnLeave").onclick = async () => {
+    try {
+      if (presenceInterval) clearInterval(presenceInterval);
+      await db.ref(`rooms/${roomCode}/players/${playerId}`).remove();
+      dbg("🏃 Left room", roomCode);
+    } catch(e) { setErr("Leave failed: " + e.message); }
+    finally {
+      setupScreen.classList.remove('hidden');
+      waitScreen.classList.add('hidden');
+      gameScreen.classList.add('hidden');
+      roomCode = null;
+      setKV("roomCode", "—");
+      isHost = false;
+      setKV("isHost", isHost);
+    }
+  };
+
+  async function joinRoom(code){
+    showWaitScreen(code);
+
+    // Presence: write player, set onDisconnect remove, heartbeat lastSeen
+    const playerRef = db.ref(`rooms/${code}/players/${playerId}`);
+    await playerRef.set({ name: playerName, host: isHost, ai: false, joinedAt: firebase.database.ServerValue.TIMESTAMP, lastSeen: firebase.database.ServerValue.TIMESTAMP })
+      .then(()=>dbg("✍️ Player set at", playerRef.toString()))
+      .catch(err => { setErr("Failed to write player: " + err.message); throw err; });
+
+    try {
+      await playerRef.onDisconnect().remove();
+      dbg("✅ onDisconnect registered");
+    } catch(e) {
+      setErr("onDisconnect failed: " + e.message);
+    }
+
+    // Heartbeat every 10s to update lastSeen (helps diagnose stale presence)
+    if (presenceInterval) clearInterval(presenceInterval);
+    presenceInterval = setInterval(()=>{
+      playerRef.update({ lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(e=>setErr("Heartbeat failed: " + e.message));
+    }, 10000);
+
+    // Listen to players list with both 'value' and 'child_added' for verbose tracing
+    const playersRef = db.ref(`rooms/${code}/players`);
+    playersRef.on("value", snap => {
+      if (snap.exists()) updatePlayersList(snap.val());
+      else updatePlayersList({});
+    }, err => setErr("players.on(value) error: " + err.message));
+
+    playersRef.on("child_added", snap => dbg("➕ child_added:", snap.key, snap.val() ));
+    playersRef.on("child_removed", snap => dbg("➖ child_removed:", snap.key ));
+    playersRef.on("child_changed", snap => dbg("♻️ child_changed:", snap.key, snap.val() ));
+
+    // Listen to game state
+    const roomRef = db.ref(`rooms/${code}`);
+    roomRef.on("value", snap => {
+      const data = snap.val() || {};
+      if (data.state && data.state.started) {
+        showGameScreen();
+        gameStatus.textContent = "Game started!";
+      }
+    }, err => setErr("room.on(value) error: " + err.message));
+  }
+
+  // Start game (host only)
+  btnStart.onclick = async () => {
+    if(!isHost) return;
+    try {
+      const playersSnap = await db.ref(`rooms/${roomCode}/players`).once("value");
+      const players = playersSnap.val() || {};
+      const humanCount = Object.values(players).filter(p => !p.ai).length;
+      let updates = {};
+      for(let i=humanCount; i<6; i++){
+        updates[`AI${i}`] = { name:`AI ${i}`, host:false, ai:true, joinedAt: firebase.database.ServerValue.TIMESTAMP };
+      }
+      if (Object.keys(updates).length) {
+        await db.ref(`rooms/${roomCode}/players`).update(updates);
+      }
+      await db.ref(`rooms/${roomCode}/state`).set({ started:true, host:playerId, t: firebase.database.ServerValue.TIMESTAMP });
+      showGameScreen();
+      gameStatus.textContent = "Game started!";
+      dbg("🚀 Game started");
+    } catch (err) {
+      setErr("Start failed: " + err.message);
+    }
+  };
+
+  // Surface unhandled promise rejections
+  window.addEventListener("unhandledrejection", (e) => {
+    setErr("Unhandled promise rejection: " + (e.reason && e.reason.message || e.reason));
+  });
+  window.addEventListener("error", (e) => setErr("Window error: " + e.message));
+
+  </script>
+</body>
+</html>
