@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>CUPADOO! — Multiplayer</title>
+<style>
+:root { --bg:#0f172a; --panel:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; --accent:#22c55e; --danger:#ef4444; --warn:#f59e0b; --table:#1e3a8a; --table2:#2563eb; }
+*{ box-sizing:border-box; } body{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+.wrap{ max-width:980px; margin:0 auto; padding:16px; } .topbar{ position:relative; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.title{ display:flex; flex-direction:column; line-height:1; }
+.brand{ font-weight:900; font-size:22px; letter-spacing:0.5px; font-family: 'Fredoka','Nunito','Poppins','system-ui',-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+.brand .r{ color:#ff3b30; } .brand .y{ color:#ffd60a; } .brand .o{ color:#ff8c00; }
+.slogan{ margin-top:4px; font-size:12px; color:var(--muted); font-weight:700; font-style:italic; }
+.menu-btn{ padding:10px 12px; border-radius:12px; background:#0b1220; border:1px solid #1f2937; color:var(--text); font-weight:700; align-self:flex-start; }
+.card{ background:var(--card); border-radius:18px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+h1{ margin:0 0 8px; font-size:24px; } h2{ margin:14px 0 8px; } .muted{ color:var(--muted); }
+.row{ display:flex; gap:10px; } .row>*{ flex:1; }
+button{ width:100%; padding:14px; border:none; border-radius:14px; font-weight:700; font-size:16px; background:linear-gradient(180deg,#22c55e,#16a34a); color:#05170c; cursor:pointer; }
+button.secondary{ background:#1f2937; color:var(--text); }
+button.warn{ background:linear-gradient(180deg,var(--warn),#eab308); color:#111; }
+button.danger{ background:linear-gradient(180deg,var(--danger),#b91c1c); color:#fff; }
+button[disabled]{ opacity:.45; cursor:not-allowed; }
+input[type=text]{ width:100%; padding:12px; border-radius:12px; border:1px solid #1f2937; background:var(--panel); color:var(--text); font-size:16px; }
+.pill{ display:inline-block; padding:6px 10px; border-radius:999px; background:var(--panel); color:var(--muted); font-size:12px; }
+.players{ display:grid; gap:10px; } .player{ display:flex; align-items:center; justify-content:space-between; background:#101523; border:1px solid #1f2937; padding:10px 12px; border-radius:14px; }
+.player.you{ outline:2px solid var(--accent); } .turn{ border:1px dashed var(--accent); }
+.player-left{ display:flex; align-items:center; gap:10px; } .player-right{ display:flex; align-items:center; gap:10px; }
+.tag{ font-size:12px; color:var(--muted); }
+.dice{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.die{ width:44px; height:44px; border-radius:12px; background:var(--panel); display:grid; place-items:center; font-weight:800; font-size:20px; border:1px solid #1f2937; }
+.die.small{ width:22px; height:22px; font-size:13px; border-radius:6px; }
+.die.reveal{ width:36px; height:36px; font-size:18px; transition:transform .35s ease, opacity .35s ease; }
+.match{ box-shadow:0 0 0 2px var(--accent) inset, 0 0 10px rgba(34,197,94,.5); }
+.hidden{ display:none !important; } .center{ text-align:center; } .big{ font-size:28px; font-weight:800; letter-spacing:1px; }
+.table-wrap{ display:grid; place-items:center; margin:12px 0 8px; }
+.table{ width:100%; max-width:720px; aspect-ratio:1/1; border-radius:9999px; background:radial-gradient(75% 75% at 50% 30%, var(--table2), var(--table)); box-shadow:inset 0 8px 40px rgba(0,0,0,.45), 0 10px 30px rgba(0,0,0,.35); border:2px solid #0b3b8e; padding:18px; position:relative; overflow:visible; }
+.seats{ position:absolute; inset:0; z-index:5; } .seat{ position:absolute; transform:translate(-50%,-50%); }
+.seat-inner{ display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.28); padding:6px 8px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(2px); white-space:nowrap; }
+.seat.turn .seat-inner{ box-shadow:0 0 0 2px var(--accent) inset, 0 0 14px rgba(34,197,94,0.45); }
+.name{ font-weight:700; font-size:13px; } .last-text{ font-size:12px; color:var(--text); opacity:.95; }
+.bid-center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; z-index:1; }
+.bid-center .big{ text-shadow:0 2px 8px rgba(0,0,0,.35); }
+.footer{ position:sticky; bottom:0; left:0; right:0; background:linear-gradient(180deg,transparent,rgba(0,0,0,.35)); padding-top:8px; }
+textarea.log{ width:100%; height:200px; background:#020617; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px; resize:vertical; }
+.kv{display:grid;grid-template-columns:180px 1fr;gap:8px;font-family:ui-monospace,monospace}.kv div{padding:4px 0;border-bottom:1px dashed #263044}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title">
+      <div class="brand"><span class="r">C</span><span class="y">U</span><span class="o">P</span><span class="r">A</span><span class="y">D</span><span class="o">O</span><span class="r">O</span><span class="y">!</span></div>
+      <div class="slogan">Multiplayer Perudo — up to 6 players</div>
+    </div>
+    <button id="btnMenu" class="menu-btn">Debug ▾</button>
+    <div id="menuDropdown" class="dropdown hidden card" style="position:absolute;right:0;top:44px;width:320px;">
+      <div class="kv">
+        <div>dbURL</div><div id="kv-db">—</div>
+        <div>playerId</div><div id="kv-pid">—</div>
+        <div>playerName</div><div id="kv-pname">—</div>
+        <div>isHost</div><div id="kv-host">—</div>
+        <div>roomCode</div><div id="kv-room">—</div>
+        <div>players path</div><div id="kv-ppath">—</div>
+        <div>lastError</div><div id="kv-err" style="color:#ef4444">—</div>
+      </div>
+      <textarea id="debugLog" class="log" spellcheck="false" readonly></textarea>
+    </div>
+  </div>
+
+  <!-- Lobby -->
+  <div class="card" id="screen-lobby">
+    <h2>Lobby</h2>
+    <div class="row">
+      <button id="btnCreate">Create Room</button>
+      <button id="btnTest" class="secondary">Test Write</button>
+    </div>
+    <div class="row">
+      <input id="joinCode" placeholder="Enter code (e.g., F8ZQ)" maxlength="8" />
+      <button id="btnJoin">Join</button>
+    </div>
+    <div class="row hidden" id="roomRow">
+      <div class="pill">Room: <span id="roomCodeLbl">—</span></div>
+      <button id="btnCopy" class="secondary">Copy Code</button>
+      <button id="btnLeave" class="warn">Leave</button>
+    </div>
+    <h3>Players</h3>
+    <div id="playersList" class="players"></div>
+    <button id="btnStart" disabled>Start Game</button>
+    <p class="muted">Host can start when at least 2 humans are present. AIs will fill empty seats to 6.</p>
+  </div>
+
+  <!-- Game -->
+  <div class="card hidden" id="screen-game">
+    <div class="row">
+      <div class="pill" id="roundPill">Round 1</div>
+      <div class="pill" id="turnPill">—</div>
+      <div class="pill" id="totalPill">Total: 0</div>
+      <div class="pill hidden" id="palificoPill">Palifico</div>
+    </div>
+    <h2 class="center" style="margin:6px 0 4px;">Your Dice</h2>
+    <div class="dice" id="yourDice"></div>
+    <div class="table-wrap">
+      <div class="table" id="tableBoard">
+        <div id="seats" class="seats"></div>
+        <div id="bidCenter" class="bid-center">
+          <div class="big" id="bidText">No bid yet</div>
+          <div class="muted" id="bidBy"></div>
+        </div>
+      </div>
+    </div>
+    <h2>Players</h2>
+    <div class="players" id="playersPanel"></div>
+    <div id="controls" class="footer">
+      <div class="row">
+        <div><label>Qty</label><input id="qty" type="text" value="1" /></div>
+        <div><label id="faceLabel">Face (2–6)</label><input id="face" type="text" value="2" /></div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnBid">Bid</button>
+        <button id="btnDudo" class="danger">Dudo</button>
+        <button id="btnCalza" class="warn">Calza</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script>
+(()=>{
+/* ===== Helpers ===== */
+const $=s=>document.querySelector(s),el=(t,c,x)=>{const e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e;},rnd=n=>1+Math.floor(Math.random()*n),roll=n=>Array.from({length:n},()=>rnd(6));
+const dbgEl = document.getElementById('debugLog'); function dbg(...a){ const line=a.map(v=>{try{return typeof v==='object'?JSON.stringify(v):String(v);}catch{return String(v);}}).join(' '); if(dbgEl){dbgEl.value+=`[${new Date().toISOString()}] ${line}\n`; dbgEl.scrollTop=dbgEl.scrollHeight;} console.log(...a); }
+function setKV(k,v){ const el=document.getElementById(k); if(el) el.textContent=v; }
+
+// Firebase init
+const firebaseConfig = {
+  apiKey: "AIzaSyA1iB1gMq2UubLhlUDvDdnQPOZ1l5utGW8",
+  authDomain: "cupadoo-80273.firebaseapp.com",
+  databaseURL: "https://cupadoo-80273-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "cupadoo-80273",
+  storageBucket: "cupadoo-80273.firebasestorage.app",
+  messagingSenderId: "827895807709",
+  appId: "1:827895807709:web:806035be2f119d3993e534",
+  measurementId: "G-8MHF4LZ9JR"
+};
+const app = firebase.apps?.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+document.getElementById('kv-db').textContent = app.options?.databaseURL || '(none)';
+
+// Local identity
+let playerId = "p" + Math.floor(Math.random()*999999);
+let playerName = "Player " + Math.floor(Math.random()*1000);
+let isHost = false;
+let roomCode = null;
+setKV('kv-pid', playerId); setKV('kv-pname', playerName); setKV('kv-host', isHost);
+
+// UI toggles
+const menuBtn=document.getElementById('btnMenu'); const dd=document.getElementById('menuDropdown');
+menuBtn.addEventListener('click', e=>{ e.stopPropagation(); dd.classList.toggle('hidden'); });
+document.addEventListener('click', ()=> dd.classList.add('hidden'));
+
+function generateCode(){ const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join(''); }
+
+let playerRef=null, playersRef=null, roomRef=null, stateRef=null, heartbeat=null;
+
+function updateStartEnabled(players){
+  const humans = Object.values(players||{}).filter(p=>p && !p.ai);
+  const can = isHost && humans.length >= 2;
+  document.getElementById('btnStart').disabled = !can;
+}
+
+function renderLobbyList(players){
+  const box=document.getElementById('playersList'); box.innerHTML='';
+  Object.entries(players||{}).forEach(([id,p])=>{
+    const row=el('div','player'+(id===playerId?' you':''));
+    row.appendChild(el('div','', (p.name||'(anon)') + (p.host?' — Host':'')));
+    row.appendChild(el('div','pill', id));
+    box.appendChild(row);
+  });
+  updateStartEnabled(players);
+}
+
+async function joinRoom(code){
+  roomCode = code; setKV('kv-room', code); document.getElementById('roomCodeLbl').textContent = code;
+  document.getElementById('roomRow').classList.remove('hidden');
+
+  playerRef = db.ref(`rooms/${code}/players/${playerId}`);
+  await playerRef.set({ name: playerName, host:isHost, ai:false, dice:5, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+  await playerRef.onDisconnect().remove();
+  if(heartbeat) clearInterval(heartbeat);
+  heartbeat = setInterval(()=> playerRef.child('lastSeen').set(firebase.database.ServerValue.TIMESTAMP), 10000);
+
+  playersRef = db.ref(`rooms/${code}/players`);
+  playersRef.on('value', s=>{ renderLobbyList(s.val()||{}); });
+
+  roomRef = db.ref(`rooms/${code}`);
+  stateRef = db.ref(`rooms/${code}/state`);
+  stateRef.on('value', s=>{
+    const st=s.val(); if(!st||!st.started){ return; }
+    // if game started, switch screen & render
+    document.getElementById('screen-lobby').classList.add('hidden');
+    document.getElementById('screen-game').classList.remove('hidden');
+    renderGame(st);
+    maybeRunAI(st);
+  });
+}
+
+document.getElementById('btnCreate').addEventListener('click', async ()=>{
+  isHost = true; setKV('kv-host', isHost);
+  const code=generateCode();
+  await joinRoom(code);
+  document.getElementById('screen-lobby').classList.remove('hidden');
+  document.getElementById('roomCodeLbl').textContent = code;
+});
+document.getElementById('btnJoin').addEventListener('click', async ()=>{
+  const code=(document.getElementById('joinCode').value||'').trim().toUpperCase(); if(!code) return;
+  isHost = false; setKV('kv-host', isHost);
+  await joinRoom(code);
+});
+document.getElementById('btnCopy').addEventListener('click', async ()=>{
+  try{ await navigator.clipboard.writeText(roomCode); }catch{}
+});
+document.getElementById('btnLeave').addEventListener('click', async ()=>{
+  try{
+    if(heartbeat) clearInterval(heartbeat);
+    if(playersRef) playersRef.off();
+    if(stateRef) stateRef.off();
+    if(playerRef) await playerRef.remove();
+  }finally{
+    roomCode = null; isHost=false; setKV('kv-host', isHost); setKV('kv-room','—');
+    document.getElementById('roomRow').classList.add('hidden');
+    document.getElementById('screen-game').classList.add('hidden');
+    document.getElementById('screen-lobby').classList.remove('hidden');
+  }
+});
+document.getElementById('btnTest').addEventListener('click', ()=>{
+  const r=db.ref(`__debug/ping`).push(); r.set({t:Date.now(), ua:navigator.userAgent}).then(()=>dbg('✅ test write ok')).catch(e=>setKV('kv-err', e.message));
+});
+
+// Host starts: add AIs to 6, seed state
+document.getElementById('btnStart').addEventListener('click', async ()=>{
+  if(!isHost) return;
+  const pSnap = await playersRef.once('value');
+  const players = pSnap.val()||{};
+  const humans = Object.entries(players).filter(([,p])=>p && !p.ai);
+  if(humans.length<2){ return; }
+
+  // fill AIs
+  const maxPlayers=6;
+  const aiNames=['Ava','Blake','Casey','Drew','Eden','Flynn','Gray','Harper','Indi','Joss','Kai','Lex'];
+  const updates={};
+  let idx=0;
+  while(Object.keys(players).length + Object.keys(updates).length < maxPlayers){
+    const id=`AI${idx++}`;
+    if(players[id] || updates[id]) continue;
+    updates[id]={ name: aiNames[(idx-1)%aiNames.length], ai:true, host:false, dice:5 };
+  }
+  if(Object.keys(updates).length){
+    await db.ref(`rooms/${roomCode}/players`).update(updates);
+  }
+
+  // Seed state
+  const allSnap = await playersRef.once('value');
+  const allPlayers = allSnap.val()||{};
+  const order = Object.keys(allPlayers);
+  const hands = {};
+  order.forEach(id=>{ const d = allPlayers[id].dice||5; hands[id] = roll(d); });
+  const startIndex = Math.floor(Math.random()*order.length);
+  const state = {
+    started:true, order, turnIndex:startIndex, round:1,
+    bid:null, palifico:false, palificoFace:null, inReveal:false, gameOver:false,
+    hands, lastChoice:{}, roundStarterIndex:startIndex, updatedAt:Date.now()
+  };
+  await stateRef.set(state);
+});
+
+/* ===== GAME RENDER + LOGIC (Shared State) ===== */
+function seatsAlive(st){ return st.order.filter(id => (st.hands[id]||[]).length>0); }
+function totalDice(st){ return st.order.reduce((s,id)=> s + (st.hands[id]?.length||0), 0); }
+function nextAlive(st, fromIndex){
+  const alive = seatsAlive(st); if(!alive.length) return fromIndex;
+  let i=fromIndex;
+  for(let c=0;c<st.order.length;c++){
+    i = (i+1)%st.order.length;
+    if((st.hands[st.order[i]]||[]).length>0) return i;
+  }
+  return fromIndex;
+}
+function onesWild(st, face){ return !st.palifico && face!==1; }
+
+function renderGame(st){
+  // top pills
+  document.getElementById('roundPill').textContent = `Round ${st.round}`;
+  const curId = st.order[st.turnIndex];
+  const curName = (st.order||[]).map(id=>id===playerId?'You':null);
+  document.getElementById('turnPill').textContent = `${st.order[st.turnIndex]===playerId?'Your':'Their'} turn`;
+  document.getElementById('totalPill').textContent = `Total: ${totalDice(st)}`;
+  document.getElementById('palificoPill').classList.toggle('hidden', !st.palifico);
+
+  // your dice
+  const yd = document.getElementById('yourDice'); yd.innerHTML='';
+  (st.hands[playerId]||[]).forEach(v=> yd.appendChild(el('div','die', String(v))));
+
+  // players panel
+  const panel=document.getElementById('playersPanel'); panel.innerHTML='';
+  st.order.forEach((id,idx)=>{
+    const pRow=el('div','player'+(id===playerId?' you':'')+(idx===st.turnIndex?' turn':''));
+    const left=el('div','player-left');
+    left.appendChild(el('div','', id===playerId ? 'You' : (id.startsWith('AI')?st.order.indexOf(id)>=0?('AI '+(st.order.indexOf(id)+1)):'AI':(id)) ));
+    left.appendChild(el('div','muted', (st.hands[id]?.length||0)+' dice'));
+    pRow.appendChild(left);
+    panel.appendChild(pRow);
+  });
+
+  // bid text
+  const b=st.bid;
+  if(!b){ document.getElementById('bidText').textContent='No bid yet'; document.getElementById('bidBy').textContent=''; }
+  else {
+    document.getElementById('bidText').textContent=`${b.qty} × ${b.face}'s ${st.palifico?'• PALIFICO':''}`;
+    document.getElementById('bidBy').textContent=`by ${b.by===playerId?'You':b.by}`;
+  }
+
+  // controls visibility
+  const myTurn = st.order[st.turnIndex]===playerId && !st.inReveal && !st.gameOver;
+  document.getElementById('controls').classList.toggle('hidden', !myTurn);
+  const faceLabel=document.getElementById('faceLabel');
+  if(!st.bid){
+    if(st.palifico && st.palificoFace!=null){ faceLabel.textContent=`Face (locked ${st.palificoFace})`; document.getElementById('face').value=st.palificoFace; }
+    else if(st.palifico){ faceLabel.textContent='Face (1–6)'; }
+    else { faceLabel.textContent='Face (2–6)'; }
+  }else{
+    if(st.palifico && st.palificoFace!=null){ faceLabel.textContent=`Face (locked ${st.palificoFace})`; document.getElementById('face').value=st.palificoFace; }
+    else { faceLabel.textContent='Face (1–6)'; }
+  }
+}
+
+function isValidRaise(st, qty, face){
+  const alive = seatsAlive(st).length;
+  if(!st.bid){
+    if(st.palifico){
+      if(alive>2){
+        if(st.palificoFace==null) return false;
+        return face===st.palificoFace && qty>=1;
+      } else {
+        return qty>=1 && face>=1 && face<=6;
+      }
+    } else {
+      if(face===1) return false;
+      return qty>=1 && face>=2 && face<=6;
+    }
+  }
+  const b=st.bid;
+  if(st.palifico){
+    const locked=st.palificoFace ?? b.face;
+    if(st.palificoFace==null) st.palificoFace=b.face;
+    if(face!==locked) return false;
+    return qty>b.qty;
+  } else {
+    if(b.face===face){ return qty>b.qty; }
+    else if(face===1 && b.face!==1){ return qty>=Math.ceil(b.qty/2); }
+    else if(b.face===1 && face!==1){ return qty>=(b.qty*2+1); }
+    else { return (qty>b.qty) || (qty===b.qty && face>b.face); }
+  }
+}
+
+async function writeState(patch){ patch.updatedAt=Date.now(); await stateRef.update(patch); }
+
+function countMatches(st, face){
+  const wild = onesWild(st, face);
+  let t=0; for(const arr of Object.values(st.hands)) for(const d of (arr||[])) if(d===face || (wild && d===1)) t++;
+  return t;
+}
+
+async function handleReveal(st, face, loserId, reason){
+  // adjust dice
+  const hands = {...st.hands};
+  if(loserId && (hands[loserId]||[]).length>0){
+    hands[loserId] = hands[loserId].slice(0, hands[loserId].length-1);
+  }
+  // check win
+  const alive = Object.keys(hands).filter(id => (hands[id]||[]).length>0);
+  if(alive.length<=1){
+    await writeState({ gameOver:true, hands, inReveal:false });
+    return;
+  }
+  // next round
+  const loserIndex = st.order.indexOf(loserId);
+  const startIndex = (hands[loserId]||[]).length>0 ? loserIndex : nextAlive({...st, hands}, loserIndex);
+  // re-roll
+  const newHands={};
+  for(const id of st.order){ const n=(hands[id]||[]).length; newHands[id] = n>0?roll(n):[]; }
+
+  const palifico = ((newHands[st.order[startIndex]]||[]).length===1);
+  await writeState({
+    hands:newHands, bid:null, inReveal:false, round:st.round+1,
+    roundStarterIndex:startIndex, turnIndex:startIndex, palifico, palificoFace:null, lastChoice:{}
+  });
+}
+
+function myTurnGuard(st){ return st.order[st.turnIndex]===playerId && !st.inReveal && !st.gameOver; }
+
+// Button actions
+document.getElementById('btnBid').addEventListener('click', async ()=>{
+  const sSnap = await stateRef.once('value'); const st=snapVal(sSnap);
+  if(!st || !myTurnGuard(st)) return;
+  const qty = parseInt(document.getElementById('qty').value,10)||1;
+  const face = Math.max(1, Math.min(6, parseInt(document.getElementById('face').value,10)||2));
+  if(!isValidRaise(st, qty, face)) return;
+  const bid={qty, face, by:playerId};
+  const next = nextAlive(st, st.turnIndex);
+  const palFace = (!st.bid && st.palifico && st.palificoFace==null) ? face : st.palificoFace;
+  await writeState({ bid, lastChoice:{...st.lastChoice, [playerId]:{type:'bid',qty,face}}, turnIndex:next, palificoFace:palFace });
+});
+
+document.getElementById('btnDudo').addEventListener('click', async ()=>{
+  const sSnap=await stateRef.once('value'); const st=snapVal(sSnap);
+  if(!st || !myTurnGuard(st)) return;
+  await writeState({ inReveal:true, lastChoice:{...st.lastChoice, [playerId]:{type:'dudo'}} });
+  const total=countMatches(st, st.bid.face);
+  const bidderId = st.bid.by;
+  const callerId = playerId;
+  const loser = (total>=st.bid.qty) ? callerId : bidderId;
+  await handleReveal(st, st.bid.face, loser, '');
+});
+
+document.getElementById('btnCalza').addEventListener('click', async ()=>{
+  const sSnap=await stateRef.once('value'); const st=snapVal(sSnap);
+  if(!st || !myTurnGuard(st) || st.palifico) return;
+  await writeState({ inReveal:true, lastChoice:{...st.lastChoice, [playerId]:{type:'calza'}} });
+  const total=countMatches(st, st.bid.face);
+  if(total===st.bid.qty){
+    // caller gains one die (cap 8)
+    const hands={...st.hands}; const n=(hands[playerId]||[]).length; hands[playerId] = roll(Math.min(8,n+1));
+    const startIndex = st.order.indexOf(playerId);
+    await writeState({ hands, inReveal:false, bid:null, round:st.round+1, roundStarterIndex:startIndex, turnIndex:startIndex, palifico:(hands[playerId].length===1), palificoFace:null, lastChoice:{} });
+  } else {
+    await handleReveal(st, st.bid.face, playerId, '');
+  }
+});
+
+function snapVal(s){ return (s && s.exists()) ? s.val() : null; }
+
+/* ===== Host-only: AI turn driver ===== */
+function estimateTail(st, face, qty, hand){
+  const N = totalDice(st) - hand.length;
+  const p = onesWild(st, face) ? (2/6) : (1/6);
+  let mine=0; for(const d of hand) if(d===face || (onesWild(st, face) && d===1)) mine++;
+  const need = Math.max(0, qty - mine);
+  // approximate tail with simple sum (small N)
+  let s=0; function fact(n){let r=1; for(let i=2;i<=n;i++) r*=i; return r;}
+  function choose(n,k){ return fact(n)/(fact(k)*fact(n-k)); }
+  for(let k=need;k<=N;k++){ s += choose(N,k) * Math.pow(p,k) * Math.pow(1-p,N-k); }
+  return s;
+}
+function aiChoose(st, id){
+  const hand = st.hands[id]||[];
+  if(!st.bid){
+    let best={face:2, qty:1, score:-1};
+    for(let f=2;f<=6;f++){
+      const q=1;
+      const score=estimateTail(st,f,q,hand);
+      if(score>best.score) best={face:f,qty:q,score};
+    }
+    return {type:'bid', qty:best.qty, face:best.face};
+  }
+  const b=st.bid;
+  // decide dudo if tail small
+  const tail=estimateTail(st, b.face, b.qty, hand);
+  if(tail<0.18) return {type:'dudo'};
+  // else raise minimally valid
+  let q=b.qty+1, f=b.face;
+  if(isValidRaise(st,q,f)) return {type:'bid', qty:q, face:f};
+  for(let ff=1; ff<=6; ff++){
+    for(let qq=b.qty; qq<=b.qty*2+4; qq++){
+      if(isValidRaise(st,qq,ff)) return {type:'bid', qty:qq, face:ff};
+    }
+  }
+  return {type:'dudo'};
+}
+async function maybeRunAI(st){
+  if(!isHost) return;
+  if(!st || st.inReveal || st.gameOver) return;
+  const curId = st.order[st.turnIndex];
+  if(!curId.startsWith('AI')) return;
+  // small delay to look natural
+  setTimeout(async ()=>{
+    const snap=await stateRef.once('value'); const curr=snapVal(snap); if(!curr) return;
+    if(curr.order[curr.turnIndex]!==curId || curr.inReveal || curr.gameOver) return;
+    const action = aiChoose(curr, curId);
+    if(action.type==='dudo'){
+      await writeState({ inReveal:true, lastChoice:{...curr.lastChoice, [curId]:{type:'dudo'}} });
+      const total=countMatches(curr, curr.bid.face);
+      const loser = (total>=curr.bid.qty) ? curId : curr.bid.by;
+      await handleReveal(curr, curr.bid.face, loser, '');
+      return;
+    }
+    if(action.type==='bid'){
+      const palFace = (!curr.bid && curr.palifico && curr.palificoFace==null) ? action.face : curr.palificoFace;
+      await writeState({ bid:{qty:action.qty, face:action.face, by:curId}, lastChoice:{...curr.lastChoice, [curId]:{type:'bid',qty:action.qty,face:action.face}}, turnIndex: nextAlive(curr, curr.turnIndex), palificoFace:palFace });
+      return;
+    }
+  }, 600);
+}
+
+/* ===== Controls for menu ===== */
+document.getElementById('btnMenu').addEventListener('click', ()=>{});
+
+})();</script>
+</body>
+</html>
