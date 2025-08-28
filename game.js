@@ -588,9 +588,25 @@ document.getElementById('btnBid').addEventListener('click', ()=>{
   const f = Math.max(1, Math.min(6, parseInt($('#face').value,10) || 1));
   const cur = state.players && state.players[state.turnIndex];
   const myTurnLocal = !!(cur && cur.id === uid) && !state.reveal && !state.gameOver;
-  if(!myTurnLocal){ toast(`If it's not your turn, the host will ignore this action.`); }
-  if(isHost){ makeBidHost(uid, q, f); } else { inputsRef.push({type:'bid', qty:q, face:f, by:uid, ts: firebase.database.ServerValue.TIMESTAMP}); }
+
+  if(!myTurnLocal){
+    toast(`It's not your turn (${cur ? cur.name : 'Unknown'}'s turn).`);
+    return; // 🚫 block out-of-turn bids
+  }
+
+  if(isHost){
+    makeBidHost(uid, q, f);
+  } else {
+    inputsRef.push({
+      type:'bid',
+      qty:q,
+      face:f,
+      by:uid,
+      ts: firebase.database.ServerValue.TIMESTAMP
+    });
+  }
 });
+
 
 document.getElementById('btnDudo').addEventListener('click', ()=>{
   const cur = state.players && state.players[state.turnIndex];
