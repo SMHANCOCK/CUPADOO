@@ -137,9 +137,25 @@ function renderStatus(){
   $('#statusPill').textContent= state.message || '';
 }
 function renderControls(){
-  const myTurn = state.players[state.turnIndex]?.id===uid;
-  const show = myTurn && !state.reveal && !state.gameOver;
-  $('#controls').classList.toggle('hidden', !show);
+const myTurn = state.players[state.turnIndex]?.id===uid;
+const active = myTurn && !state.reveal && !state.gameOver;
+
+// Keep controls always visible
+$('#controls').classList.remove('hidden');
+
+// Enable/disable buttons based on turn
+['btnBid','btnDudo','btnCalza'].forEach(id=>{
+  const b=document.getElementById(id);
+  if(b){ b.disabled = !active; }
+});
+
+// Calza extra rule
+const calzaBtn=$('#btnCalza');
+if(calzaBtn){
+  calzaBtn.disabled = !active || state.palifico;
+  calzaBtn.classList.toggle('hidden', state.palifico);
+}
+
   const calzaBtn=$('#btnCalza'); if(calzaBtn){ calzaBtn.disabled = state.palifico; calzaBtn.classList.toggle('hidden', state.palifico); }
   setFirstBidControls();
 }
@@ -611,16 +627,26 @@ document.getElementById('btnBid').addEventListener('click', ()=>{
 document.getElementById('btnDudo').addEventListener('click', ()=>{
   const cur = state.players && state.players[state.turnIndex];
   const myTurnLocal = !!(cur && cur.id === uid) && !state.reveal && !state.gameOver;
-  if(!myTurnLocal){ toast(`If it's not your turn, the host will ignore this action.`); }
-  if(isHost){ setLastChoice(uid,{type:'dudo'}); handleDudoHost(uid); syncState(); } else { inputsRef.push({type:'dudo', by:uid, ts: firebase.database.ServerValue.TIMESTAMP}); }
+  if(!myTurnLocal){
+    toast(`It's not your turn (${cur ? cur.name : 'Unknown'}'s turn).`);
+    return; // 🚫 block completely
+  }
+  if(isHost){ setLastChoice(uid,{type:'dudo'}); handleDudoHost(uid); syncState(); } 
+  else { inputsRef.push({type:'dudo', by:uid, ts: firebase.database.ServerValue.TIMESTAMP}); }
 });
+
 
 document.getElementById('btnCalza').addEventListener('click', ()=>{
   const cur = state.players && state.players[state.turnIndex];
   const myTurnLocal = !!(cur && cur.id === uid) && !state.reveal && !state.gameOver;
-  if(!myTurnLocal){ toast(`If it's not your turn, the host will ignore this action.`); }
-  if(isHost){ setLastChoice(uid,{type:'calza'}); handleCalzaHost(uid); syncState(); } else { inputsRef.push({type:'calza', by:uid, ts: firebase.database.ServerValue.TIMESTAMP}); }
+  if(!myTurnLocal){
+    toast(`It's not your turn (${cur ? cur.name : 'Unknown'}'s turn).`);
+    return; // 🚫 block completely
+  }
+  if(isHost){ setLastChoice(uid,{type:'calza'}); handleCalzaHost(uid); syncState(); } 
+  else { inputsRef.push({type:'calza', by:uid, ts: firebase.database.ServerValue.TIMESTAMP}); }
 });
+
 
 document.getElementById('btnRevealOk').addEventListener('click', ()=>{
   if(isHost){ inputsRef.push({type:'continueReveal', by:uid, ts: firebase.database.ServerValue.TIMESTAMP}); }
