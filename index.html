@@ -1,0 +1,105 @@
+!doctype html
+html lang=en
+head
+  meta charset=utf-8 
+  meta name=viewport content=width=device-width, initial-scale=1 
+  titleCUPADOO! — Multiplayer (Firebase RTDB)title
+  link rel=stylesheet href=style.css
+head
+body
+div class=wrap
+  !-- Top bar --
+  div class=topbar
+    div class=title top-brand
+      div class=brand aria-label=CUPADOO!
+        span class=rCspanspan class=yUspanspan class=oPspanspan class=rAspanspan class=yDspanspan class=oOspanspan class=rOspanspan class=y!span
+      div
+      div class=sloganShake it. Fake it. Take it.div
+    div
+    button id=btnMenu class=menu-btnMenu ▾button
+    div id=menuDropdown class=dropdown hidden
+      button id=ddHome class=link🏠 Lobbybutton
+      button id=ddCopyCode class=link🔗 Copy room codebutton
+    div
+  div
+
+  !-- Lobby --
+  div class=card id=screen-lobby
+    div class=menu-brand center
+      div class=brandspan class=rCspanspan class=yUspanspan class=oPspanspan class=rAspanspan class=yDspanspan class=oOspanspan class=rOspanspan class=y!spandiv
+      div class=sloganMultiplayer — Firebase RTDBdiv
+      div id=versionLabel style=margin-top6px;text-aligncenter;font-weight800;color#e5e7eb;opacity0.9;Version v3div
+    div
+
+    div class=row
+      divlabelYour namelabelinput id=youName type=text placeholder=You value=You div
+      divlabelRoom codelabelinput id=roomCode type=text placeholder=e.g. Z3Q9K div
+    div
+
+    h2 style=margin-top12px;Cup colourh2
+    div id=colorPicker class=color-pickerdiv
+
+    div class=row style=margin-top12px;
+      button id=btnHostCreate roombutton
+      button id=btnJoin class=secondaryJoin roombutton
+    div
+
+    div id=lobbyInfo class=hidden style=margin-top8px;
+      pRoom span class=room-code id=displayRoom—span • Players (2–6)p
+      div class=players id=lobbyPlayersdiv
+      div class=row style=margin-top10px;
+        button id=btnStart class=warn disabledStart game (host)button
+        button id=btnLeave class=dangerLeave roombutton
+      div
+    div
+  div
+
+  !-- Game --
+  div class=card hidden id=screen-game
+    div class=row
+      div class=pill id=roundPillRound 1div
+      div class=pill id=turnPillYour turndiv
+      div class=pill id=statusPill&nbsp;div
+      div class=pill id=totalPillTotal 0 dicediv
+      div class=pill id=roomPillRoom —div
+    div
+
+    h2 class=center style=margin6px 0 4px;Your Diceh2
+    div class=dice id=yourDicediv
+
+    h2Playersh2
+    div class=players id=playersListdiv
+
+    div id=controls class=footer
+      div class=row
+        divlabelQuantitylabelinput id=qty type=number min=1 value=1 div
+        divlabel id=faceLabelFace (2–6)labelinput id=face type=number min=2 max=6 value=2 div
+      div
+      div class=row style=margin-top8px;
+        button id=btnBid🎲 Make Bidbutton
+        button id=btnDudo class=danger💥 Dudobutton
+        button id=btnCalza class=warn🎯 Calzabutton
+      div
+    div
+  div
+
+  !-- Game Over overlay --
+  div id=overlay class=overlay hidden
+    div class=modal
+      h3 id=overlayTitleGame overh3
+      p id=overlayText—p
+      div class=row style=margin-top12px;
+        button id=btnRematchRematchbutton
+        button id=btnMenuFromOverlay class=secondaryLobbybutton
+      div
+    div
+  div
+div
+
+div id=toaster class=toast hiddendiv
+
+script src=httpswww.gstatic.comfirebasejs9.22.2firebase-app-compat.jsscript
+script src=httpswww.gstatic.comfirebasejs9.22.2firebase-database-compat.jsscript
+script type=module src=.main.jsscript
+body
+html
