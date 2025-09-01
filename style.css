@@ -1,29 +1,35 @@
-root { --bg#0f172a; --panel#0b1220; --card#111827; --text#e5e7eb; --muted#94a3b8; --accent#22c55e; --danger#ef4444; --warn#f59e0b; }
-{ box-sizingborder-box; }
-body{ margin0; backgroundvar(--bg); colorvar(--text); font-familysystem-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
-.wrap{ max-width980px; margin0 auto; padding16px; }
-.topbar{ positionrelative; displayflex; align-itemsflex-start; justify-contentspace-between; gap10px; margin-bottom10px; }
-.title{ displayflex; flex-directioncolumn; line-height1; }
-.brand{ font-weight900; font-size22px; letter-spacing0.5px; font-family'Fredoka','Nunito','Poppins',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
-.brand .r{ color#ff3b30; } .brand .y{ color#ffd60a; } .brand .o{ color#ff8c00; }
-.slogan{ margin-top4px; font-size12px; colorvar(--muted); font-weight700; font-styleitalic; }
-.menu-btn{ padding10px 12px; border-radius12px; background#0b1220; border1px solid #1f2937; colorvar(--text); font-weight700; align-selfflex-start; }
-.dropdown{ positionabsolute; right0; top36px; backgroundvar(--card); border1px solid #1f2937; border-radius12px; padding8px; displayflex; flex-directioncolumn; gap6px; }
-.card{ backgroundvar(--card); border-radius18px; padding16px; box-shadow0 10px 30px rgba(0,0,0,.35); }
-h1{ margin0 0 8px; font-size24px; } h2{ margin14px 0 8px; } .muted{ colorvar(--muted); }
-.row{ displayflex; gap10px; } .row{ flex1; }
-button{ width100%; padding14px; bordernone; border-radius14px; font-weight700; font-size16px; backgroundlinear-gradient(180deg,#22c55e,#16a34a); color#05170c; cursorpointer; }
-button.secondary{ background#1f2937; colorvar(--text); }
-button.warn{ backgroundlinear-gradient(180deg,var(--warn),#eab308); color#111; }
-button.danger{ backgroundlinear-gradient(180deg,var(--danger),#b91c1c); color#fff; }
-button.link{ background#0b1220; colorvar(--text); border1px solid #1f2937; }
-button[disabled]{ opacity.45; cursornot-allowed; }
-input[type=number],input[type=text],select{ width100%; padding12px; border-radius12px; border1px solid #1f2937; backgroundvar(--panel); colorvar(--text); font-size16px; }
-.pill{ displayinline-block; padding6px 10px; border-radius999px; backgroundvar(--panel); colorvar(--muted); font-size12px; }
-.players{ displaygrid; gap10px; } .player{ displayflex; align-itemscenter; justify-contentspace-between; background#101523; border1px solid #1f2937; padding10px 12px; border-radius14px; }
-.player.you{ outline2px solid var(--accent); } .turn{ border1px dashed var(--accent); }
-.footer{ positionsticky; bottom0; left0; right0; backgroundlinear-gradient(180deg,transparent,rgba(0,0,0,.35)); padding-top8px; }
-.hidden{ displaynone !important; } .center{ text-aligncenter; } .big{ font-size28px; font-weight800; letter-spacing1px; }
-.toast{ positionfixed; bottom16px; left50%; transformtranslateX(-50%); backgroundvar(--panel); padding12px 16px; border-radius14px; border1px solid #1f2937; z-index999; }
-.dice{ displayflex; gap8px; flex-wrapwrap; justify-contentcenter; }
-.die{ width44px; height44px; border-radius12px; backgroundvar(--panel); displaygrid; place-itemscenter; font-weight800; font-size20px; border1px solid #1f2937; }
+:root { 
+  --bg: #0f172a; 
+  --panel: #0b1220; 
+  --card: #111827; 
+  --text: #e5e7eb; 
+  --muted: #94a3b8; 
+  --accent: #22c55e; 
+  --danger: #ef4444; 
+  --warn: #f59e0b; 
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0; 
+  background: var(--bg); 
+  color: var(--text); 
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+
+.topbar { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+
+.title { display: flex; flex-direction: column; line-height: 1; }
+
+.brand { font-weight: 900; font-size: 22px; letter-spacing: 0.5px; font-family: 'Fredoka','Nunito','Poppins',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+
+.brand .r { color: #ff3b30; } 
+.brand .y { color: #ffd60a; } 
+.brand .o { color: #ff8c00; }
+
+.slogan { margin-top: 4px; font-size: 12px; color: var(--muted); font-weight: 700; font-style: italic; }
+
+.menu-btn { padding: 10px 12px; border-radius: 12px; background: #0b1220; border: 1px solid #1f2937; color: var(--text); font-weight: 700; align-self:
